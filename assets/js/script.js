@@ -1,3 +1,4 @@
+
 $(document).ready(function(){
     let canvas = document.querySelector('#canvas');
     let ctx = canvas.getContext('2d');
@@ -12,6 +13,8 @@ $(document).ready(function(){
     canvas.fillStyle = "white";
     canvas.style.background = "grey";
 
+    let Storage = window.localStorage;
+
     class Board{
         nodes = [];
         relations = [];
@@ -21,48 +24,172 @@ $(document).ready(function(){
 
         constructor() {
             //todo: Сделать проверку на присутствие связей
-            this.relations = [];
+            this.restore();
+            this.draw();
 
-            if(this.relations.length == 0){
+            if(this.nodes.length == 0){
                 this.addNode(canvas.width / 2 - this.figureWidth, canvas.height / 2 - this.figureWidth);
                 this.draw();
             }
+
+            this.save();
         }
 
-        addNode = (x, y, node = false, width = this.figureWidth) => {
-            this.nodes.push(new Node(x, y, width));
+        restore = () => {
+            let nodes = JSON.parse(Storage.getItem('nodes'));
+            let relations = JSON.parse(Storage.getItem('relations'));
+            if(nodes){
+                nodes.map((node) => {
+                    this.addNode(node.coords.x, node.coords.y);
+                    this.getLastNode().relations = node.relations;
+                });
 
-            if(node) {
-                let lastNode = this.getLastNode();
-                let relation = new Relation(node, lastNode);
+                if(relations){
+                    relations.map((relation) => {
+                       let newRelation = new Relation(this.nodes[relation.parent], this.nodes[relation.child]);
+                       newRelation.parentType = relation.parentType;
+                       newRelation.childType = relation.childType;
 
-                this.relations.push(relation);
-
-                lastNode.relations.push(relation);
+                       this.relations.push(newRelation);
+                    });
+                }
             }
+        }
+
+        getLastRelation = () => {
+            return this.relations[this.relations.length - 1];
+        }
+
+        save = () => {
+           let nodesSave = [];
+           let relationsSave = [];
+           this.nodes.map((node, i) => {
+               nodesSave.push({
+                   coords: node.coords,
+                   relations: node.relations
+               });
+           });
+           this.relations.map((relation, i, relations) => {
+               relationsSave.push({
+                   parent: this.nodes.indexOf(relation.parent),
+                   child: this.nodes.indexOf(relation.child),
+                   parentType: relation.parentType,
+                   childType: relation.childType
+               });
+           });
+           //relationsSave = this.relations;
+            /*Storage.setItem('nodes', JSON.stringify(nodesSave, function( key, value) {
+                if( key == 'parent' || key == 'child') { return value.id;}
+                else {return value;}
+            }));*/
+            Storage.setItem('nodes', JSON.stringify(nodesSave));
+            Storage.setItem('relations', JSON.stringify(relationsSave));
+        }
+
+        removeNode = (node) => {
+            this.removeRelations(node);
+            this.nodes.splice(this.nodes.indexOf(node), 1);
+            this.save();
+        }
+
+        removeRelations = (node) => {
+            this.relations = this.relations.filter((relation) => {
+               if(
+                   relation.parent != node &&
+                   relation.child != node
+               ){
+                   console.log('del rel')
+                   return relation;
+               }
+            });
+        }
+
+        addNode = (x, y, parentSection = false, width = this.figureWidth) => {
+
+            if(parentSection) {
+                let parentNode = parentSection.parent;
+                /*this.relations.map((relation) => {
+                    if(
+                        this.compareNodes(relation.parent, parentNode) &&
+                        this.compareNodes(relation.child, parentNode)
+                    )
+                        console.log('parent st')
+                });*/
+                let isExist = false;
+                let lastNode = this.getLastNode();
+                if(parentNode.relations.indexOf(parentSection.type) >= 0)
+                    isExist = true;
+                /*this.relations.map((relation) => {
+                    if(relation.hash == newRelation.hash)
+                        isExist = true;
+                });*/
+
+                if(!isExist){
+                    let newNode = new Node(x, y, width);
+                    let newRelation = new Relation(parentNode, newNode);
+                    newRelation.parentType = parentSection.type;
+                    newRelation.defineChildType();
+
+                    this.relations.push(newRelation);
+                    this.nodes.push(newNode);
+                    newNode.relations.push(newRelation.childType);
+                    parentNode.relations.push(newRelation.parentType);
+
+                    this.clear();
+                    this.draw();
+                    //parentNode.drawSections();
+                    this.save();
+                }
+                return;
+                //lastNode.relations.push(relation);
+            } else {
+                this.nodes.push(new Node(x, y, width));
+            }
+
+            this.save();
         }
 
         getLastNode = () => {
             return this.nodes[this.nodes.length - 1];
         }
 
-        draw = () => {
+        draw = (section = false) => {
             this.nodes.map((node) => {
+                if(section){
+                    node.sections.map((section) => {
+                        section.draw();
+                    })
+                }
                 node.draw();
-                console.log(node.relations);
-                if(node.relations.length != 0){
+                /*if(node.relations.length != 0){
                     node.relations.map((relation) => {
+                        relation.draw();
+                    });
+                }*/
+                if(this.relations.length != 0){
+                    this.relations.map((relation) => {
                         relation.draw();
                     });
                 }
             })
         }
 
+        drawAllSections = () => {
+            this.nodes.map((node) => {
+                node.sections.map((section) => {
+                    if(section != this.selectedNode)
+                        if(node.relations.indexOf(section.type) < 0)
+                            section.draw();
+
+                })
+            })
+
+        }
+
         check = (x, y) => {
             let isSelected = false;
 
             this.nodes.map((node) => {
-                console.log(node.check(x, y));
                 if(node.check(x, y) !== false){
                     //this.selectedNode = node;
                     this.selectedNode = node.check(x, y);
@@ -152,8 +279,16 @@ $(document).ready(function(){
 
         drawSections = () => {
             this.sections.forEach((section) => {
-                section.draw();
+                if(this.relations.indexOf(section.type) < 0)
+                    section.draw();
             });
+        }
+
+        recountSections = () => {
+            this.sections.map((section) => {
+                if(section != board.selectedNode)
+                    section.recount();
+            })
         }
 
         move = (x, y, drag = false) => {
@@ -163,7 +298,7 @@ $(document).ready(function(){
                     y: y
                 }
                 this.sections.forEach((section) => {
-                    section.move();
+                    section.recount();
                 });
                 this.defineSideCoords();
             } else {
@@ -172,7 +307,7 @@ $(document).ready(function(){
                     y: y - this.width / 2
                 }
                 this.sections.forEach((section) => {
-                    section.move();
+                    section.recount();
                 });
                 this.defineSideCoords();
             }
@@ -202,7 +337,6 @@ $(document).ready(function(){
     }
 
     class Section{
-        figure;
         width = 0;
         coords = {};
         type = '';
@@ -210,10 +344,9 @@ $(document).ready(function(){
         constructor(parent, type) {
             this.parent = parent;
             this.width = parent.width / 2;
-            this.figure = new Path2D();
             this.type = type;
 
-            this.move();
+            this.recount();
         }
 
         draw = () => {
@@ -229,7 +362,7 @@ $(document).ready(function(){
             ctx.closePath();
         }
 
-        move = () => {
+        recount = () => {
             switch (this.type) {
                 case 'top':
                     this.coords = {
@@ -258,6 +391,13 @@ $(document).ready(function(){
             }
         }
 
+        move = (x, y) => {
+            this.coords = {
+                x: x,
+                y: y
+            }
+        }
+
         check = (x, y) => {
             let result = false;
             if (
@@ -273,13 +413,116 @@ $(document).ready(function(){
     }
 
     class Relation{
+        parentType = '';
+        childType = '';
         section = {};
         parent = {};
         child = {};
         constructor(parent, child) {
             this.child = child;
+            this.parent = parent;
+        }
+
+        defineChildType = () => {
+            switch (this.parentType) {
+                case 'top':
+                    this.childType = 'bot';
+                    break;
+                case 'left':
+                    this.childType = 'right';
+                    break;
+                case 'bot':
+                    this.childType = 'top';
+                    break;
+                case 'right':
+                    this.childType = 'left';
+                    break;
+            }
+        }
+
+        draw = () => {
+            ctx.beginPath();
+
+            let fromX, fromY, toX, toY;
+
+            switch (this.parentType) {
+                case 'top':
+                    fromX = this.parent.sidesCoords.top.x;
+                    fromY = this.parent.sidesCoords.top.y;
+                    toX = this.child.sidesCoords.bot.x;
+                    toY = this.child.sidesCoords.bot.y;
+                    break;
+                case 'right':
+                    fromX = this.parent.sidesCoords.right.x;
+                    fromY = this.parent.sidesCoords.right.y;
+                    toX = this.child.sidesCoords.left.x;
+                    toY = this.child.sidesCoords.left.y;
+                    break;
+                case 'bot':
+                    fromX = this.parent.sidesCoords.bot.x;
+                    fromY = this.parent.sidesCoords.bot.y;
+                    toX = this.child.sidesCoords.top.x;
+                    toY = this.child.sidesCoords.top.y;
+                    break;
+                case 'left':
+                    fromX = this.parent.sidesCoords.left.x;
+                    fromY = this.parent.sidesCoords.left.y;
+                    toX = this.child.sidesCoords.right.x;
+                    toY = this.child.sidesCoords.right.y;
+                    break;
+            }
+            ctx.moveTo(fromX, fromY);
+            ctx.lineTo(toX, toY);
+            ctx.stroke();
+
+            ctx.closePath();
+        }
+    }
+
+    /*class Relation{
+        parentType = '';
+        childType = '';
+        section = {};
+        parent = {};
+        child = {};
+        hash = '';
+        constructor(parent, child) {
+            this.child = child;
             this.section = parent;
             this.parent = parent.parent;
+
+            //this.makeHash();
+
+            this.definneTypes()
+        }
+
+        makeHash = () => {
+            let hash = [
+                this.parentType,
+                this.childType,
+                this.parent.coords,
+                this.child.coords
+            ];
+
+            this.hash = JSON.stringify(hash);
+        }
+
+        definneTypes = () => {
+            this.parentType = this.section.type;
+            switch (this.parentType) {
+                case 'top':
+                    this.childType = 'bot';
+                    break;
+                case 'left':
+                    this.childType = 'right';
+                    break;
+                case 'bot':
+                    this.childType = 'top';
+                    break;
+                case 'right':
+                    this.childType = 'left';
+                    break;
+            }
         }
 
         draw = () => {
@@ -313,34 +556,15 @@ $(document).ready(function(){
                     toY = this.child.sidesCoords.right.y;
                     break;
             }
-            console.log(fromX);
-            console.log(toX);
             ctx.moveTo(fromX, fromY);
             ctx.lineTo(toX, toY);
             ctx.stroke();
 
             ctx.closePath();
+
+            //this.makeHash();
         }
-    }
-
-    /*let fig = new Node(100, 100, 50)
-    fig.draw();
-
-    let clear = () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
-
-    function mouseMove(e){
-        clear()
-
-        mouse.x = e.clientX;
-        mouse.y = e.clientY;
-
-        fig.move(mouse.x, mouse.y);
-        fig.draw();
-    }
-
-    canvas.addEventListener('mousemove', mouseMove);*/
+    }*/
 
     let board = new Board();
 
@@ -351,9 +575,8 @@ $(document).ready(function(){
 
 
         //board.clear();
-        if(board.check(mouse.x, mouse.y)){
+        if(board.check(mouse.x, mouse.y) && !e.shiftKey){
             if(board.selectedNode.constructor.name == 'Section'){
-                console.log('section');
                 let x = board.selectedNode.parent.coords.x;
                 let y = board.selectedNode.parent.coords.y;
                 switch(board.selectedNode.type) {
@@ -376,13 +599,34 @@ $(document).ready(function(){
     });
 
     canvas.addEventListener('mouseup', (e) => {
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
+
+        /*let prevSelectedNode = board.selectedNode;
+        if(board.check(mouse.x, mouse.y) && e.shiftKey)
+        {
+            board.selectedNode.recount();
+            if(board.selectedNode.constructor.name == 'Section'){
+                console.log(prevSelectedNode);
+                console.log(board.selectedNode);
+                let newRelation = new Relation(prevSelectedNode.parent, board.selectedNode.parent);
+                newRelation.parentType = prevSelectedNode.type;
+                newRelation.childType = board.selectedNode.type;
+
+                board.relations.push(newRelation);
+            }
+        }
+
+        board.clear();
+        board.draw();*/
+
         board.selectedNode = false;
         board.isMouseDown = false;
     });
 
 
     canvas.addEventListener('mousemove', function (e){
-        console.log('node:', board.selectedNode);
+        //console.log('node:', board.selectedNode);
         let page = {
             x: e.pageX,
             y: e.pageY
@@ -390,28 +634,42 @@ $(document).ready(function(){
         /*let x = e.pageX,
             y = e.pageY;*/
         if(e.shiftKey && board.selectedNode && board.isMouseDown){
-            /*mouse.x = e.clientX;
-            mouse.y = e.clientY;
+            if(board.selectedNode.constructor.name == 'Node'){
+                board.clear();
 
-            board.clear();
-            board.selectedNode.move(mouse.x, mouse.y);
-            board.draw();*/
+                let offset = {
+                    x: page.x - mouse.x,
+                    y: page.y - mouse.y
+                };
 
-            board.clear();
+                board.selectedNode.coords.x += offset.x;
+                board.selectedNode.coords.y += offset.y;
+                board.selectedNode.move(board.selectedNode.coords.x, board.selectedNode.coords.y, true);
+                board.save();
+                mouse.x = page.x;
+                mouse.y = page.y;
 
-            let offset = {
-                x: page.x - mouse.x,
-                y: page.y - mouse.y
-            };
+                board.draw();
+            } else if (board.selectedNode.constructor.name == 'Section') {
+                board.clear();
 
-            board.selectedNode.coords.x += offset.x;
-            board.selectedNode.coords.y += offset.y;
-            board.selectedNode.move(board.selectedNode.coords.x, board.selectedNode.coords.y, true);
+                let offset = {
+                    x: page.x - mouse.x,
+                    y: page.y - mouse.y
+                };
 
-            mouse.x = page.x;
-            mouse.y = page.y;
+                board.selectedNode.coords.x += offset.x;
+                board.selectedNode.coords.y += offset.y;
+                board.selectedNode.move(board.selectedNode.coords.x, board.selectedNode.coords.y, true);
+                board.save();
+                mouse.x = page.x;
+                mouse.y = page.y;
 
-            board.draw();
+                board.draw();
+                board.drawAllSections();
+                board.selectedNode.draw();
+            }
+
         }
         if(e.shiftKey && !board.selectedNode && board.isMouseDown) {
             board.clear();
@@ -439,9 +697,20 @@ $(document).ready(function(){
         mouse.y = e.clientY;
 
         if(board.check(mouse.x, mouse.y)){
+            board.clear();
+            board.draw();
+            board.selectedNode.recountSections();
             board.selectedNode.drawSections();
-            board.selectedNode = false;
+            //board.selectedNode = false;
         }
     });
+
+    document.addEventListener('keydown', (e) => {
+        if(e.key == 'Delete' && board.selectedNode){
+            board.removeNode(board.selectedNode);
+            board.clear();
+            board.draw();
+        }
+    })
 
 });
