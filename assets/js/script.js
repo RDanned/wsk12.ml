@@ -23,7 +23,6 @@ $(document).ready(function(){
         isMouseDown = false;
 
         constructor() {
-            //todo: Сделать проверку на присутствие связей
             this.restore();
             this.draw();
 
@@ -54,10 +53,6 @@ $(document).ready(function(){
                     });
                 }
             }
-        }
-
-        getLastRelation = () => {
-            return this.relations[this.relations.length - 1];
         }
 
         save = () => {
@@ -100,6 +95,13 @@ $(document).ready(function(){
                ){
                    console.log('del rel')
                    return relation;
+               } else {
+                   this.nodes.map((nodeEl) => {
+                       if(nodeEl == relation.parent)
+                           nodeEl.relations.splice(nodeEl.relations.indexOf(relation.parentType), 1);
+                       else if(nodeEl == relation.child)
+                           nodeEl.relations.splice(nodeEl.relations.indexOf(relation.childType), 1);
+                   });
                }
             });
         }
@@ -155,23 +157,20 @@ $(document).ready(function(){
 
         draw = (section = false) => {
             this.nodes.map((node) => {
-                if(section){
+                if (section) {
                     node.sections.map((section) => {
                         section.draw();
                     })
                 }
                 node.draw();
-                /*if(node.relations.length != 0){
-                    node.relations.map((relation) => {
-                        relation.draw();
-                    });
-                }*/
-                if(this.relations.length != 0){
-                    this.relations.map((relation) => {
-                        relation.draw();
-                    });
-                }
             })
+
+            if (this.relations.length != 0) {
+                this.relations.map((relation) => {
+                    relation.draw();
+                });
+
+            }
         }
 
         drawAllSections = () => {
@@ -191,7 +190,6 @@ $(document).ready(function(){
 
             this.nodes.map((node) => {
                 if(node.check(x, y) !== false){
-                    //this.selectedNode = node;
                     this.selectedNode = node.check(x, y);
                     isSelected = true;
                 }
@@ -286,7 +284,7 @@ $(document).ready(function(){
 
         recountSections = () => {
             this.sections.map((section) => {
-                if(section != board.selectedNode)
+                //if(section != board.selectedNode)
                     section.recount();
             })
         }
@@ -341,6 +339,7 @@ $(document).ready(function(){
         coords = {};
         type = '';
         parent = {};
+        isDrawed = false;
         constructor(parent, type) {
             this.parent = parent;
             this.width = parent.width / 2;
@@ -358,6 +357,17 @@ $(document).ready(function(){
 
             ctx.fillStyle = 'orange';
             ctx.fillRect(this.coords.x, this.coords.y, this.width, this.width);
+            this.isDrawed = true;
+
+            ctx.closePath();
+        }
+
+        hover = () => {
+            ctx.beginPath();
+
+            ctx.fillStyle = 'purple';
+            ctx.fillRect(this.coords.x, this.coords.y, this.width, this.width);
+            this.isDrawed = true;
 
             ctx.closePath();
         }
@@ -449,28 +459,48 @@ $(document).ready(function(){
                 case 'top':
                     fromX = this.parent.sidesCoords.top.x;
                     fromY = this.parent.sidesCoords.top.y;
-                    toX = this.child.sidesCoords.bot.x;
-                    toY = this.child.sidesCoords.bot.y;
+                    /*toX = this.child.sidesCoords.bot.x;
+                    toY = this.child.sidesCoords.bot.y;*/
                     break;
                 case 'right':
                     fromX = this.parent.sidesCoords.right.x;
                     fromY = this.parent.sidesCoords.right.y;
-                    toX = this.child.sidesCoords.left.x;
-                    toY = this.child.sidesCoords.left.y;
+                    /*toX = this.child.sidesCoords.left.x;
+                    toY = this.child.sidesCoords.left.y;*/
                     break;
                 case 'bot':
                     fromX = this.parent.sidesCoords.bot.x;
                     fromY = this.parent.sidesCoords.bot.y;
-                    toX = this.child.sidesCoords.top.x;
-                    toY = this.child.sidesCoords.top.y;
+                    /*toX = this.child.sidesCoords.top.x;
+                    toY = this.child.sidesCoords.top.y;*/
                     break;
                 case 'left':
                     fromX = this.parent.sidesCoords.left.x;
                     fromY = this.parent.sidesCoords.left.y;
+                    /*toX = this.child.sidesCoords.right.x;
+                    toY = this.child.sidesCoords.right.y;*/
+                    break;
+            }
+
+            switch(this.childType){
+                case 'top':
+                    toX = this.child.sidesCoords.top.x;
+                    toY = this.child.sidesCoords.top.y;
+                    break;
+                case 'right':
                     toX = this.child.sidesCoords.right.x;
                     toY = this.child.sidesCoords.right.y;
                     break;
+                case 'bot':
+                    toX = this.child.sidesCoords.bot.x;
+                    toY = this.child.sidesCoords.bot.y;
+                    break;
+                case 'left':
+                    toX = this.child.sidesCoords.left.x;
+                    toY = this.child.sidesCoords.left.y;
+                    break;
             }
+
             ctx.moveTo(fromX, fromY);
             ctx.lineTo(toX, toY);
             ctx.stroke();
@@ -478,93 +508,6 @@ $(document).ready(function(){
             ctx.closePath();
         }
     }
-
-    /*class Relation{
-        parentType = '';
-        childType = '';
-        section = {};
-        parent = {};
-        child = {};
-        hash = '';
-        constructor(parent, child) {
-            this.child = child;
-            this.section = parent;
-            this.parent = parent.parent;
-
-            //this.makeHash();
-
-            this.definneTypes()
-        }
-
-        makeHash = () => {
-            let hash = [
-                this.parentType,
-                this.childType,
-                this.parent.coords,
-                this.child.coords
-            ];
-
-            this.hash = JSON.stringify(hash);
-        }
-
-        definneTypes = () => {
-            this.parentType = this.section.type;
-            switch (this.parentType) {
-                case 'top':
-                    this.childType = 'bot';
-                    break;
-                case 'left':
-                    this.childType = 'right';
-                    break;
-                case 'bot':
-                    this.childType = 'top';
-                    break;
-                case 'right':
-                    this.childType = 'left';
-                    break;
-            }
-        }
-
-        draw = () => {
-            ctx.beginPath();
-
-            let fromX, fromY, toX, toY;
-
-            switch (this.section.type) {
-                case 'top':
-                    fromX = this.parent.sidesCoords.top.x;
-                    fromY = this.parent.sidesCoords.top.y;
-                    toX = this.child.sidesCoords.bot.x;
-                    toY = this.child.sidesCoords.bot.y;
-                    break;
-                case 'right':
-                    fromX = this.parent.sidesCoords.right.x;
-                    fromY = this.parent.sidesCoords.right.y;
-                    toX = this.child.sidesCoords.left.x;
-                    toY = this.child.sidesCoords.left.y;
-                    break;
-                case 'bot':
-                    fromX = this.parent.sidesCoords.bot.x;
-                    fromY = this.parent.sidesCoords.bot.y;
-                    toX = this.child.sidesCoords.top.x;
-                    toY = this.child.sidesCoords.top.y;
-                    break;
-                case 'left':
-                    fromX = this.parent.sidesCoords.left.x;
-                    fromY = this.parent.sidesCoords.left.y;
-                    toX = this.child.sidesCoords.right.x;
-                    toY = this.child.sidesCoords.right.y;
-                    break;
-            }
-            ctx.moveTo(fromX, fromY);
-            ctx.lineTo(toX, toY);
-            ctx.stroke();
-
-            ctx.closePath();
-
-            //this.makeHash();
-        }
-    }*/
 
     let board = new Board();
 
@@ -576,7 +519,7 @@ $(document).ready(function(){
 
         //board.clear();
         if(board.check(mouse.x, mouse.y) && !e.shiftKey){
-            if(board.selectedNode.constructor.name == 'Section'){
+            if(board.selectedNode.constructor.name == 'Section' && board.selectedNode.isDrawed){
                 let x = board.selectedNode.parent.coords.x;
                 let y = board.selectedNode.parent.coords.y;
                 switch(board.selectedNode.type) {
@@ -601,27 +544,37 @@ $(document).ready(function(){
     canvas.addEventListener('mouseup', (e) => {
         mouse.x = e.clientX;
         mouse.y = e.clientY;
-
-        /*let prevSelectedNode = board.selectedNode;
+        board.isMouseDown = false;
+        let prevSelectedNode = board.selectedNode;
+        board.selectedNode = false;
         if(board.check(mouse.x, mouse.y) && e.shiftKey)
         {
             board.selectedNode.recount();
-            if(board.selectedNode.constructor.name == 'Section'){
-                console.log(prevSelectedNode);
-                console.log(board.selectedNode);
+            console.log(prevSelectedNode);
+            console.log(board.selectedNode);
+            //if(board.selectedNode.constructor.name == 'Section' && board.selectedNode != parent){
+            if(board.selectedNode.constructor.name == 'Section' && !(board.selectedNode.parent == prevSelectedNode.parent)){
                 let newRelation = new Relation(prevSelectedNode.parent, board.selectedNode.parent);
                 newRelation.parentType = prevSelectedNode.type;
                 newRelation.childType = board.selectedNode.type;
+                console.log(newRelation)
+                prevSelectedNode.parent.relations.push(prevSelectedNode.type);
+                board.selectedNode.parent.relations.push(board.selectedNode.type);
 
                 board.relations.push(newRelation);
+
+                board.save();
             }
         }
 
+        if(board.selectedNode.constructor.name == 'Section') {
+            board.selectedNode.isDrawed = false;
+        }
+
         board.clear();
-        board.draw();*/
+        board.draw();
 
         board.selectedNode = false;
-        board.isMouseDown = false;
     });
 
 
@@ -650,6 +603,7 @@ $(document).ready(function(){
                 mouse.y = page.y;
 
                 board.draw();
+                board.save();
             } else if (board.selectedNode.constructor.name == 'Section') {
                 board.clear();
 
@@ -666,8 +620,8 @@ $(document).ready(function(){
                 mouse.y = page.y;
 
                 board.draw();
-                board.drawAllSections();
                 board.selectedNode.draw();
+                board.drawAllSections();
             }
 
         }
@@ -689,6 +643,7 @@ $(document).ready(function(){
             mouse.y = page.y;
 
             board.draw();
+            board.save();
         }
     });
 
@@ -712,5 +667,13 @@ $(document).ready(function(){
             board.draw();
         }
     })
+
+    $('#clear').click(function(e){
+        Storage.clear();
+        board.clear();
+        board = new Board();
+        board.selectedNode = false
+        board.save();
+    });
 
 });
