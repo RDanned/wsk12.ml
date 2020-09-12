@@ -1,0 +1,43 @@
+.modal{
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    background-color: rgba(0, 0, 0, 0.3);
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.editor{
+    display: none;
+    /*position: relative;*/
+    /*width: 700px;*/
+}
+.editor__wrapper{
+    position: relative;
+    height: 80%;
+    width: 40%;
+    background-color: white;
+}
+
+.editor__input{
+    position: absolute;
+    bottom: 0;
+    margin-top: 100px;
+}
+
+.editor__close{
+    position: absolute;
+    right: 15px;
+    top: 15px;
+    font-size: 25px;
+    cursor: pointer;
+}
+
+.editor.active{
+    display: flex;
+}

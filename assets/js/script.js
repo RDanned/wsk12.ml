@@ -1,4 +1,3 @@
-
 $(document).ready(function(){
     let canvas = document.querySelector('#canvas');
     let ctx = canvas.getContext('2d');
@@ -15,12 +14,16 @@ $(document).ready(function(){
 
     let Storage = window.localStorage;
 
+    //var editor = new FroalaEditor('#example');
+
     class Board{
         nodes = [];
         relations = [];
         figureWidth = 50;
         selectedNode = false;
         isMouseDown = false;
+        editor = {};
+        modalClosed = true;
 
         constructor() {
             this.restore();
@@ -185,12 +188,12 @@ $(document).ready(function(){
 
         }
 
-        check = (x, y) => {
+        check = (x, y, exclude = false) => {
             let isSelected = false;
 
             this.nodes.map((node) => {
-                if(node.check(x, y) !== false){
-                    this.selectedNode = node.check(x, y);
+                if(node.check(x, y, exclude) !== false){
+                    this.selectedNode = node.check(x, y, exclude);
                     isSelected = true;
                 }
 
@@ -205,6 +208,25 @@ $(document).ready(function(){
 
         clear = () => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        openContentEditor = () => {
+            this.editor = $('.editor__input').froalaEditor();
+            this.editor.froalaEditor('html.set', board.selectedNode.content);
+            $('.editor').addClass('active');
+            this.modalClosed = false;
+        }
+
+        closeContentEditor = () => {
+            console.log('closet');
+            this.editor.froalaEditor('destroy');
+            $('.editor').removeClass('active');
+            this.modalClosed = true;
+        }
+
+        saveContentEditor = (e, editor) => {
+            let content = editor.html.get();
+            board.selectedNode.content = content;
         }
 
     }
@@ -223,6 +245,7 @@ $(document).ready(function(){
         selectedSection;
         figure;
         sidesCoords = {};
+        content = "";
         constructor(x, y, width) {
             this.coords = {
                 x: x,
@@ -315,7 +338,7 @@ $(document).ready(function(){
             }
         }
 
-        check = (x, y) => {
+        check = (x, y, exclude = false) => {
             let result = false;
             if(
                 x >= this.coords.x &&
@@ -326,8 +349,14 @@ $(document).ready(function(){
                 result = this;
 
             this.sections.forEach((section) => {
-                if(section.check(x, y))
+                console.log("sec check")
+                console.log(section.check(x, y) == exclude)
+                if((section.check(x, y) != false) && section.check(x, y) != exclude)
+                {
                     result = section.check(x, y);
+                } else{
+                    console.log("sec check inval")
+                }
             });
 
             return result;
@@ -561,18 +590,26 @@ $(document).ready(function(){
             board.selectedNode.recount();
             console.log(prevSelectedNode);
             console.log(board.selectedNode);
+            console.log(board.selectedNode == prevSelectedNode);
             //if(board.selectedNode.constructor.name == 'Section' && board.selectedNode != parent){
-            if(board.selectedNode.constructor.name == 'Section' && !(board.selectedNode.parent == prevSelectedNode.parent)){
-                let newRelation = new Relation(prevSelectedNode.parent, board.selectedNode.parent);
-                newRelation.parentType = prevSelectedNode.type;
-                newRelation.childType = board.selectedNode.type;
-                console.log(newRelation)
-                prevSelectedNode.parent.relations.push(prevSelectedNode.type);
-                board.selectedNode.parent.relations.push(board.selectedNode.type);
+            if(
+                board.selectedNode.constructor.name == 'Section'
+                && !(board.selectedNode.parent == prevSelectedNode.parent)
+            ){
+                if(board.selectedNode == prevSelectedNode){
+                    board.check(mouse.x, mouse.y, board.selectedNode);
 
-                board.relations.push(newRelation);
+                    let newRelation = new Relation(prevSelectedNode.parent, board.selectedNode.parent);
+                    newRelation.parentType = prevSelectedNode.type;
+                    newRelation.childType = board.selectedNode.type;
+                    console.log(newRelation)
+                    prevSelectedNode.parent.relations.push(prevSelectedNode.type);
+                    board.selectedNode.parent.relations.push(board.selectedNode.type);
 
-                board.save();
+                    board.relations.push(newRelation);
+
+                    board.save();
+                }
             }
         }
 
@@ -679,12 +716,19 @@ $(document).ready(function(){
     });
 
     document.addEventListener('keydown', (e) => {
-        if(e.key == 'Delete' && board.selectedNode){
+        console.log(e.code)
+        if(e.code == 'Delete' && board.selectedNode){
             board.removeNode(board.selectedNode);
             board.clear();
             board.draw();
+        } else if(e.code == 'KeyE' && board.selectedNode && board.modalClosed){
+            board.openContentEditor();
         }
     })
+
+    //board.openContentEditor();
+    board.editor = $('.editor__input').froalaEditor();
+    board.editor.on('froalaEditor.contentChanged', board.saveContentEditor);
 
     $('#clear').click(function(e){
         Storage.clear();
@@ -692,6 +736,20 @@ $(document).ready(function(){
         board = new Board();
         board.selectedNode = false;
         board.save();
+    });
+
+    $('#setContent').click(function(e){
+        //contentOutput
+        //let cnt = $('#contentOutput').html();
+        //board.editor.froalaEditor('html.set', cnt)
+        //e.target.html();
+        /*let content = board.editor.froalaEditor('html.get');
+        $('#contentOutput').html(content);*/
+    });
+
+    $('.editor__close').click(function(e){
+        console.log('close click');
+        board.closeContentEditor();
     });
 
 });
