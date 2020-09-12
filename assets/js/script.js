@@ -199,6 +199,10 @@ $(document).ready(function(){
             return isSelected;
         }
 
+        select = (node) => {
+            this.selectedNode = node;
+        }
+
         clear = () => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
@@ -360,6 +364,11 @@ $(document).ready(function(){
             this.isDrawed = true;
 
             ctx.closePath();
+
+            ctx.beginPath();
+            ctx.fillStyle = 'black';
+            ctx.fillRect(this.coords.x + this.width / 2, this.coords.y + this.width / 2, 2, 2);
+            ctx.closePath()
         }
 
         hover = () => {
@@ -607,6 +616,15 @@ $(document).ready(function(){
             } else if (board.selectedNode.constructor.name == 'Section') {
                 board.clear();
 
+                /*let prev = board.selectedNode;
+                if(board.check(e.clientX, e.clientY))
+                    if (board.selectedNode != prev){
+                        board.selectedNode.hover();
+                        board.select(prev);
+                    }
+
+                board.select(prev);*/
+
                 let offset = {
                     x: page.x - mouse.x,
                     y: page.y - mouse.y
@@ -672,7 +690,7 @@ $(document).ready(function(){
         Storage.clear();
         board.clear();
         board = new Board();
-        board.selectedNode = false
+        board.selectedNode = false;
         board.save();
     });
 
