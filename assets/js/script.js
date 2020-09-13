@@ -44,6 +44,7 @@ $(document).ready(function(){
                 nodes.map((node) => {
                     this.addNode(node.coords.x, node.coords.y);
                     this.getLastNode().relations = node.relations;
+                    this.getLastNode().content= node.content;
                 });
 
                 if(relations){
@@ -64,7 +65,8 @@ $(document).ready(function(){
            this.nodes.map((node, i) => {
                nodesSave.push({
                    coords: node.coords,
-                   relations: node.relations
+                   relations: node.relations,
+                   content: node.content
                });
            });
            this.relations.map((relation, i, relations) => {
@@ -88,6 +90,10 @@ $(document).ready(function(){
             this.removeRelations(node);
             this.nodes.splice(this.nodes.indexOf(node), 1);
             this.save();
+        }
+
+        getStartNode = () => {
+            return this.nodes[0];
         }
 
         removeRelations = (node) => {
@@ -218,14 +224,22 @@ $(document).ready(function(){
         }
 
         closeContentEditor = () => {
-            console.log('closet');
+
+            let content = this.editor.froalaEditor('html.get');
+            console.log('saving content:', content);
+            board.selectedNode.content = content;
+
+            console.log('closed');
             this.editor.froalaEditor('destroy');
             $('.editor').removeClass('active');
             this.modalClosed = true;
+            console.log(this.nodes)
+            board.save();
         }
 
         saveContentEditor = (e, editor) => {
             let content = editor.html.get();
+            console.log('saving content:', content);
             board.selectedNode.content = content;
         }
 
@@ -267,6 +281,7 @@ $(document).ready(function(){
         figure;
         sidesCoords = {};
         content = "";
+
         constructor(x, y, width) {
             this.coords = {
                 x: x,
@@ -592,6 +607,122 @@ $(document).ready(function(){
         }
     }
 
+    class Viewer{
+        content = "";
+        node = {};
+        sides = [];
+        controls = "";
+
+        constructor() {
+
+        }
+
+        initViewer = (node = false) => {
+            if(node.constructor.name != 'Node')
+                node = board.getStartNode();
+
+            this.clear();
+
+            this.setNode(node);
+
+            this.setContent(this.node.content);
+            this.renderContent(this.content);
+
+            this.setSides(this.node);
+            this.initButtons();
+            this.renderControls();
+
+            $('.viewer').addClass('active');
+        }
+
+        closeViewer = () => {
+            $('.viewer').removeClass('active');
+        }
+
+        setSides = (node) => {
+            this.sides = node.relations;
+        }
+
+        initButtons = () => {
+            this.sides.map((side) => {
+                switch (side) {
+                    case 'top':
+                        this.controls += `<button class='viewer__slide top' data-side='${side}'>Top</button>`;
+                        break;
+                    case 'right':
+                        this.controls += `<button class='viewer__slide right' data-side='${side}'>Right</button>`;
+                        break;
+                    case 'bot':
+                        this.controls += `<button class='viewer__slide bot' data-side='${side}'>Bot</button>`;
+                        break;
+                    case 'left':
+                        this.controls += `<button class='viewer__slide left' data-side='${side}'>Left</button>`;
+                        break;
+                }
+            })
+        }
+
+        renderControls = () => {
+            $('.viewer__controls').html(this.controls);
+            $('.viewer__slide').click(function(e){
+                viewer.slide(e);
+            });
+        }
+
+        clear = () => {
+            this.clearControls();
+            this.clearOutput();
+        }
+
+        clearOutput = () => {
+            $('.viewer__output').empty();
+        }
+
+        clearControls = () => {
+            this.controls = '';
+            $('.viewer__controls').empty();
+        }
+
+        getNextNode = (node, side) => {
+            let result = false;
+
+            board.relations.map((relation) => {
+                if(relation.child == node && relation.childType == side) {
+                    result = relation.parent;
+                } else if(relation.parent == node && relation.parentType == side) {
+                    result = relation.child;
+                }
+            });
+
+            return result;
+        }
+
+        slide = (e) => {
+            console.log('slide');
+
+            let btn = $(e.target);
+            let nextSlideType = btn.data('side');
+
+            let nextNode = this.getNextNode(this.node, nextSlideType);
+
+            console.log(nextNode)
+
+            this.initViewer(nextNode);
+        }
+
+        setContent = (content) => {
+            this.content = content;
+        }
+
+        renderContent = (content) => {
+            $('.viewer__output').html(content);
+        }
+
+        setNode = (node) => {
+            this.node = node
+        }
+    }
+
     let board = new Board();
 
     canvas.addEventListener('mousedown', (e) => {
@@ -792,6 +923,7 @@ $(document).ready(function(){
     //board.openContentEditor();
     board.editor = $('.editor__input').froalaEditor();
     board.editor.on('froalaEditor.contentChanged', board.saveContentEditor);
+    let viewer = new Viewer();
 
     $('#clear').click(function(e){
         Storage.clear();
@@ -801,17 +933,8 @@ $(document).ready(function(){
         board.save();
     });
 
-    $('#setContent').click(function(e){
-        //contentOutput
-        //let cnt = $('#contentOutput').html();
-        //board.editor.froalaEditor('html.set', cnt)
-        //e.target.html();
-        /*let content = board.editor.froalaEditor('html.get');
-        $('#contentOutput').html(content);*/
-    });
+    $('.editor__close').click(board.closeContentEditor);
 
-    $('.editor__close').click(function(e){
-        board.closeContentEditor();
-    });
-
+    $('#view').click(viewer.initViewer);
+    $('.viewer__close').click(viewer.closeViewer);
 });

@@ -12,12 +12,13 @@
     z-index: 100;
 }
 
-.editor{
+.modal{
     display: none;
     /*position: relative;*/
     /*width: 700px;*/
 }
-.editor__wrapper{
+.editor__wrapper,
+.viewer__wrapper{
     position: relative;
     height: 80%;
     width: 40%;
@@ -30,7 +31,8 @@
     margin-top: 100px;
 }
 
-.editor__close{
+.editor__close,
+.viewer__close{
     position: absolute;
     right: 15px;
     top: 15px;
@@ -38,6 +40,19 @@
     cursor: pointer;
 }
 
-.editor.active{
+.modal.active{
     display: flex;
+}
+
+.controls{
+    position: absolute;
+    left: 20px;
+    top: 20px;
+}
+
+.viewer__controls{
+    position: absolute;
+    left: 50%;
+    bottom: 20%;
+    transform: translate(-50%, -50%);
 }
