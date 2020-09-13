@@ -229,6 +229,27 @@ $(document).ready(function(){
             board.selectedNode.content = content;
         }
 
+        getCollision = (x, y, movingNode) => {
+            let result = false;
+            this.nodes.map((node) => {
+                if(movingNode != node){
+                    if(node.checkSelf(x, y)){
+                        result = node;
+                    }
+
+                    node.sections.map((section) => {
+                        if(movingNode != section){
+                            if(section.checkSelf(x, y)){
+                                result = section;
+                            }
+                        }
+                    });
+                }
+            })
+
+            return result;
+        }
+
     }
 
     class Node{
@@ -338,6 +359,20 @@ $(document).ready(function(){
             }
         }
 
+        checkSelf = (x, y) => {
+            let result = false;
+
+            if(
+                x >= this.coords.x &&
+                x <= this.coords.x + this.width &&
+                y >= this.coords.y &&
+                y <= this.coords.y + this.width
+            )
+                result = true;
+
+            return result;
+        }
+
         check = (x, y, exclude = false) => {
             let result = false;
             if(
@@ -360,10 +395,6 @@ $(document).ready(function(){
             });
 
             return result;
-            /*return x >= this.coords.x &&
-                   x <= this.coords.x + this.width &&
-                   y >= this.coords.y &&
-                   y <= this.coords.y + this.width;*/
         }
     }
 
@@ -444,6 +475,20 @@ $(document).ready(function(){
                 x: x,
                 y: y
             }
+        }
+
+        checkSelf = (x, y) => {
+            let result = false;
+
+            if(
+                x >= this.coords.x &&
+                x <= this.coords.x + this.width &&
+                y >= this.coords.y &&
+                y <= this.coords.y + this.width
+            )
+                result = true;
+
+            return result;
         }
 
         check = (x, y) => {
@@ -594,9 +639,25 @@ $(document).ready(function(){
             //if(board.selectedNode.constructor.name == 'Section' && board.selectedNode != parent){
             if(
                 board.selectedNode.constructor.name == 'Section'
-                && !(board.selectedNode.parent == prevSelectedNode.parent)
+                /*&& !(board.selectedNode.parent == prevSelectedNode.parent)*/
             ){
-                if(board.selectedNode == prevSelectedNode){
+                mouset.x = e.clientX;
+                mouset.y = e.clientY;
+                let collisionNode = board.getCollision(mouset.x, mouset.y, board.selectedNode);
+
+
+                let newRelation = new Relation(collisionNode.parent, board.selectedNode.parent);
+                newRelation.parentType = collisionNode.type;
+                newRelation.childType = board.selectedNode.type;
+                console.log(newRelation)
+                collisionNode.parent.relations.push(collisionNode.type);
+                board.selectedNode.parent.relations.push(board.selectedNode.type);
+
+                board.relations.push(newRelation);
+
+                board.save();
+
+                /*if(board.selectedNode == prevSelectedNode){
                     board.check(mouse.x, mouse.y, board.selectedNode);
 
                     let newRelation = new Relation(prevSelectedNode.parent, board.selectedNode.parent);
@@ -609,7 +670,7 @@ $(document).ready(function(){
                     board.relations.push(newRelation);
 
                     board.save();
-                }
+                }*/
             }
         }
 
@@ -623,7 +684,10 @@ $(document).ready(function(){
         board.selectedNode = false;
     });
 
-
+    let mouset = {
+        x: 0,
+        y: 0
+    }
     canvas.addEventListener('mousemove', function (e){
         //console.log('node:', board.selectedNode);
         let page = {
@@ -716,8 +780,7 @@ $(document).ready(function(){
     });
 
     document.addEventListener('keydown', (e) => {
-        console.log(e.code)
-        if(e.code == 'Delete' && board.selectedNode){
+        if((e.code == 'Delete' || e.code == 'KeyD') && board.selectedNode && board.modalClosed){
             board.removeNode(board.selectedNode);
             board.clear();
             board.draw();
@@ -748,7 +811,6 @@ $(document).ready(function(){
     });
 
     $('.editor__close').click(function(e){
-        console.log('close click');
         board.closeContentEditor();
     });
 
